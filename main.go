@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,6 +24,7 @@ import (
 
 	utls "github.com/refraction-networking/utls"
 	"github.com/valyala/fasthttp"
+	"golang.org/x/net/proxy"
 )
 
 // =================================================================
@@ -286,7 +288,7 @@ type TelegramFile struct {
 }
 
 // =================================================================
-// محرك الفحص المنظم (خالٍ تماماً من تسريب الـ Goroutines)
+// محرك الفحص المنظم
 // =================================================================
 type UsernameTask struct {
 	TargetUsername string
@@ -583,7 +585,7 @@ func (engine *UsernameScannerEngine) StopEngine() {
 }
 
 // =================================================================
-// تنفيذ فحص الـ GraphQL والبروكسي الآمن
+// تنفيذ فحص الـ GraphQL ودعم كافة أنواع البروكسيات (HTTP, HTTPS, SOCKS4, SOCKS5)
 // =================================================================
 func randomString(n int) string {
 	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
@@ -601,6 +603,10 @@ func fastHex(n int) string {
 		b[i] = hexChars[rand.Intn(16)]
 	}
 	return string(b)
+}
+
+func base64StandardEncode(text string) string {
+	return base64.StdEncoding.EncodeToString([]byte(text))
 }
 
 func WriteDebugResponseLog(proxyURL string, username string, statusCode int, responseSnippet string, err string) {
@@ -632,32 +638,116 @@ func executeGraphQLValidationSafe(ctx context.Context, username string, proxyURL
 				if !strings.Contains(formattedProxy, "://") {
 					formattedProxy = "http://" + formattedProxy
 				}
+
 				pURL, parseErr := url.Parse(formattedProxy)
 				if parseErr != nil {
 					return nil, parseErr
 				}
-				
-				tcpConn, err = dialsNet.DialContext(ctx, "tcp", pURL.Host)
-				if err != nil {
-					return nil, err
-				}
 
-				connectReq := fmt.Sprintf("CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n", addr, addr)
-				_, err = tcpConn.Write([]byte(connectReq))
-				if err != nil {
-					tcpConn.Close()
-					return nil, err
-				}
+				scheme := strings.ToLower(pURL.Scheme)
 
-				buf := make([]byte, 1024)
-				n, err := tcpConn.Read(buf)
-				if err != nil {
-					tcpConn.Close()
-					return nil, err
-				}
-				if !strings.Contains(string(buf[:n]), "200") {
-					tcpConn.Close()
-					return nil, fmt.Errorf("proxy connect failed: %s", string(buf[:n]))
+				// دعم بروكسيات SOCKS5 / SOCKS5h
+				if strings.HasPrefix(scheme, "socks5") {
+					var auth *proxy.Auth
+					if pURL.User != nil {
+						password, _ := pURL.User.Password()
+						auth = &proxy.Auth{
+							User:     pURL.User.Username(),
+							Password: password,
+						}
+					}
+					socksDialer, err := proxy.SOCKS5("tcp", pURL.Host, auth, dialsNet)
+					if err != nil {
+						return nil, err
+					}
+					tcpConn, err = socksDialer.Dial("tcp", addr)
+					if err != nil {
+						return nil, err
+					}
+				} else if strings.HasPrefix(scheme, "socks4") {
+					// دعم بروكسيات SOCKS4 / SOCKS4a
+					proxyHost, proxyPortStr, err := net.SplitHostPort(pURL.Host)
+					if err != nil {
+						return nil, err
+					}
+					proxyPort, err := strconv.Atoi(proxyPortStr)
+					if err != nil {
+						return nil, err
+					}
+
+					targetHost, targetPortStr, err := net.SplitHostPort(addr)
+					if err != nil {
+						return nil, err
+					}
+					targetPort, err := strconv.Atoi(targetPortStr)
+					if err != nil {
+						return nil, err
+					}
+
+					tcpConn, err = dialsNet.DialContext(ctx, "tcp", net.JoinHostPort(proxyHost, strconv.Itoa(proxyPort)))
+					if err != nil {
+						return nil, err
+					}
+
+					ip := net.ParseIP(targetHost)
+					var reqBytes []byte
+					if ip != nil && ip.To4() != nil {
+						reqBytes = []byte{0x04, 0x01, byte(targetPort >> 8), byte(targetPort & 0xFF)}
+						reqBytes = append(reqBytes, ip.To4()...)
+						reqBytes = append(reqBytes, 0x00)
+					} else {
+						reqBytes = []byte{0x04, 0x01, byte(targetPort >> 8), byte(targetPort & 0xFF), 0x00, 0x00, 0x00, 0x01, 0x00}
+						reqBytes = append(reqBytes, []byte(targetHost)...)
+						reqBytes = append(reqBytes, 0x00)
+					}
+
+					_, err = tcpConn.Write(reqBytes)
+					if err != nil {
+						tcpConn.Close()
+						return nil, err
+					}
+
+					respBuf := make([]byte, 8)
+					_, err = io.ReadFull(tcpConn, respBuf)
+					if err != nil {
+						tcpConn.Close()
+						return nil, err
+					}
+					if respBuf[1] != 0x5a {
+						tcpConn.Close()
+						return nil, fmt.Errorf("socks4 proxy rejected connection: status code %d", respBuf[1])
+					}
+				} else {
+					// دعم بروكسيات HTTP / HTTPS مع المصادقة (إذا وجدت)
+					tcpConn, err = dialsNet.DialContext(ctx, "tcp", pURL.Host)
+					if err != nil {
+						return nil, err
+					}
+
+					connectReq := fmt.Sprintf("CONNECT %s HTTP/1.1\r\nHost: %s\r\n", addr, addr)
+					if pURL.User != nil {
+						userInfo := pURL.User.String()
+						encodedAuth := base64StandardEncode(userInfo)
+						connectReq += fmt.Sprintf("Proxy-Authorization: Basic %s\r\n", encodedAuth)
+					}
+					connectReq += "\r\n"
+
+					_, err = tcpConn.Write([]byte(connectReq))
+					if err != nil {
+						tcpConn.Close()
+						return nil, err
+					}
+
+					buf := make([]byte, 1024)
+					n, err := tcpConn.Read(buf)
+					if err != nil {
+						tcpConn.Close()
+						return nil, err
+					}
+					if !strings.Contains(string(buf[:n]), "200") {
+						tcpConn.Close()
+						return nil, fmt.Errorf("proxy connect failed: %s", string(buf[:n]))
+					}
 				}
 			} else {
 				tcpConn, err = dialsNet.DialContext(ctx, "tcp", addr)
@@ -1401,7 +1491,7 @@ func HandleInlineCallbackQuery(callbackQuery *TelegramQuery) {
 }
 
 func PromptForProxiesFile(chatID int64) {
-	text := "<b>Send the proxies file (.txt)</b>\n\nEach line: <code>IP:PORT</code>"
+	text := "<b>Send the proxies file (.txt)</b>\n\nSupports: HTTP, HTTPS, SOCKS4, SOCKS5"
 	markup := map[string]interface{}{
 		"inline_keyboard": [][]map[string]string{
 			{{"text": "Cancel", "callback_data": "menu"}},
@@ -1963,7 +2053,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	fmt.Println("============================================================")
-	fmt.Println("                Jekr Need (uTLS + fasthttp)                 ")
+	fmt.Println("         Jekr Need (uTLS + All Proxies Support)             ")
 	fmt.Println("============================================================")
 
 	os.MkdirAll("data", 0755)
