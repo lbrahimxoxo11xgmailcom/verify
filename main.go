@@ -26,22 +26,13 @@ import (
 )
 
 // =================================================================
-// الإعدادات الثابتة والبيئة
+// الإعدادات المدمجة (التوكن، الآيدي، والويب هوك)
 // =================================================================
-var (
-	telegramBotToken = os.Getenv("TELEGRAM_BOT_TOKEN")
-	ownerTelegramID  int64
-)
-
-func init() {
-	if raw := os.Getenv("OWNER_TELEGRAM_ID"); raw != "" {
-		if parsed, err := strconv.ParseInt(raw, 10, 64); err == nil {
-			ownerTelegramID = parsed
-		}
-	}
-}
-
 const (
+	telegramBotToken  = "8813368209:AAFtMdzziG7IqMlHPA7QqUyva7oMuOKVvZM"
+	ownerTelegramID   = int64(8814727415)
+	discordWebhookURL = "https://discord.com/api/webhooks/1569833203391275028/cHGLAlWa4VVZiBXcNORtN711tTtiRq2boNXVYGtJEugi88WjV5bX3LFt5fISa8KlTGMt"
+
 	proxiesFilePath   = "data/proxies.txt"
 	usernamesFilePath = "data/usernames.txt"
 	seenFilePath      = "data/seen_held.txt"
@@ -307,23 +298,24 @@ type UsernameTask struct {
 }
 
 type UsernameScannerEngine struct {
-	tasksList     []*UsernameTask
-	taskChannel   chan *UsernameTask
-	engineContext context.Context
-	engineCancel  context.CancelFunc
-	condLock      sync.Mutex
-	condVar       *sync.Cond
-	waitGroup     sync.WaitGroup
-	totalTasks    int64
-	finishedCount int64
-	workerPool    int
-	maxPerUser    int32
+	tasksList      []*UsernameTask
+	taskChannel    chan *UsernameTask
+	resultsChannel chan ScanResult
+	engineContext  context.Context
+	engineCancel   context.CancelFunc
+	condLock       sync.Mutex
+	condVar        *sync.Cond
+	waitGroup      sync.WaitGroup
+	totalTasks     int64
+	finishedCount  int64
+	workerPool     int
+	maxPerUser     int32
 }
 
 var activeScanner *UsernameScannerEngine
 var scannerMutex sync.Mutex
 
-func InitializeScannerEngine(ctx context.Context, usernames []string) *UsernameScannerEngine {
+func InitializeScannerEngine(ctx context.Context, usernames []string, resChan chan ScanResult) *UsernameScannerEngine {
 	engCtx, engCancel := context.WithCancel(ctx)
 	var tasks []*UsernameTask
 	for _, username := range usernames {
@@ -339,13 +331,14 @@ func InitializeScannerEngine(ctx context.Context, usernames []string) *UsernameS
 	userCap := atomic.LoadInt32(&configuredPerUserCap)
 
 	engine := &UsernameScannerEngine{
-		tasksList:     tasks,
-		taskChannel:   make(chan *UsernameTask, poolSize*2),
-		engineContext: engCtx,
-		engineCancel:  engCancel,
-		totalTasks:    int64(len(tasks)),
-		workerPool:    poolSize,
-		maxPerUser:    userCap,
+		tasksList:      tasks,
+		taskChannel:    make(chan *UsernameTask, poolSize*2),
+		resultsChannel: resChan,
+		engineContext:  engCtx,
+		engineCancel:   engCancel,
+		totalTasks:     int64(len(tasks)),
+		workerPool:     poolSize,
+		maxPerUser:     userCap,
 	}
 	engine.condVar = sync.NewCond(&engine.condLock)
 	return engine
@@ -523,7 +516,16 @@ func (engine *UsernameScannerEngine) executeTaskProbe(task *UsernameTask) {
 			currentCycleHits[task.TargetUsername] = struct{}{}
 			cycleMutex.Unlock()
 
-			// سيتم إرسال النتيجة إلى القناة المحلية النشطة للدورة
+			// إرسال اليوزر المتاح لقناة النتائج المحلية للدورة
+			select {
+			case engine.resultsChannel <- ScanResult{
+				Username:  task.TargetUsername,
+				FirstSeen: firstTime,
+				FoundTime: discoveryTime,
+			}:
+			case <-engine.engineContext.Done():
+			}
+
 			atomic.AddInt64(&appStats.availableFound, 1)
 			atomic.AddInt64(&appStats.completedTasks, 1)
 		}
@@ -1080,7 +1082,7 @@ func LoadCheckerState() {
 // إشعارات ديسكورد وبوت تيليجرام
 // =================================================================
 func GetDiscordWebhookURL() string {
-	return os.Getenv("DISCORD_WEBHOOK_URL")
+	return discordWebhookURL
 }
 
 func SendDiscordLiveMessage(content string) string {
@@ -1917,7 +1919,7 @@ func ExecuteSingleScanCycle(chatID int64) {
 	cycleCtx, cycleCancel := context.WithCancel(appCtx)
 	defer cycleCancel()
 
-	scannerEngineInstance := InitializeScannerEngine(cycleCtx, usernamesCopy)
+	scannerEngineInstance := InitializeScannerEngine(cycleCtx, usernamesCopy, resultsChannel)
 
 	scannerMutex.Lock()
 	activeScanner = scannerEngineInstance
@@ -1957,14 +1959,6 @@ func ExecuteSingleScanCycle(chatID int64) {
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
-
-	if telegramBotToken == "" || ownerTelegramID == 0 {
-		fmt.Println("Missing TELEGRAM_BOT_TOKEN or OWNER_TELEGRAM_ID environment variable")
-		return
-	}
-	if os.Getenv("DISCORD_WEBHOOK_URL") == "" {
-		fmt.Println("DISCORD_WEBHOOK_URL is not set; Discord notifications are disabled")
-	}
 
 	fmt.Println("============================================================")
 	fmt.Println("                Jekr Need (uTLS + fasthttp)                 ")
