@@ -98,7 +98,7 @@ func getPlatformSpecificMetrics() (float64, float64) {
 }
 
 // =================================================================
-// قناة النتائج ومرسل ديسكورد المستقل
+// قناة النتائج ومرسل ديسكورد المستقل (محلي لكل دورة)
 // =================================================================
 type ScanResult struct {
 	Username  string
@@ -106,9 +106,7 @@ type ScanResult struct {
 	FoundTime time.Time
 }
 
-var resultsChannel chan ScanResult
-
-func StartResultsWriterAndNotifier(doneSignal chan struct{}) {
+func StartResultsWriterAndNotifier(resultsChannel chan ScanResult, doneSignal chan struct{}) {
 	defer close(doneSignal)
 
 	file, err := os.OpenFile(seenFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -297,7 +295,7 @@ type TelegramFile struct {
 }
 
 // =================================================================
-// محرك الفحص المنظم (مصحح ومنظم بدون تسريب Goroutine)
+// محرك الفحص المنظم (خالٍ تماماً من تسريب الـ Goroutines)
 // =================================================================
 type UsernameTask struct {
 	TargetUsername string
@@ -354,18 +352,18 @@ func InitializeScannerEngine(ctx context.Context, usernames []string) *UsernameS
 }
 
 func (engine *UsernameScannerEngine) StartScanning() {
-	for i := 0; i < engine.workerPool; i++ {
-		engine.waitGroup.Add(1)
-		go engine.workerRoutine()
-	}
-
-	// مراقب إلغاء واحد فقط يُنشأ مرة واحدة للإنجن بأكمله لمنع تسريب الـ Goroutines
+	// مراقب إلغاء واحد فقط يُنشأ مرة واحدة للإنجن بأكمله
 	go func() {
 		<-engine.engineContext.Done()
 		engine.condLock.Lock()
 		engine.condVar.Broadcast()
 		engine.condLock.Unlock()
 	}()
+
+	for i := 0; i < engine.workerPool; i++ {
+		engine.waitGroup.Add(1)
+		go engine.workerRoutine()
+	}
 
 	engine.dispatchLoopWithoutPolling()
 	engine.waitGroup.Wait()
@@ -388,13 +386,26 @@ func (engine *UsernameScannerEngine) dispatchLoopWithoutPolling() {
 		engine.condLock.Lock()
 		task := engine.findNextEligibleTaskLocked()
 		if task == nil {
-			if atomic.LoadInt64(&engine.finishedCount) < atomic.LoadInt64(&engine.totalTasks) &&
+			for atomic.LoadInt64(&engine.finishedCount) < engine.totalTasks &&
 				atomic.LoadInt32(&isLoopRunning) == 1 &&
 				engine.engineContext.Err() == nil && appCtx.Err() == nil {
+
 				engine.condVar.Wait()
+
+				if engine.engineContext.Err() != nil || appCtx.Err() != nil {
+					engine.condLock.Unlock()
+					return
+				}
+
+				task = engine.findNextEligibleTaskLocked()
+				if task != nil {
+					break
+				}
 			}
-			engine.condLock.Unlock()
-			continue
+			if task == nil {
+				engine.condLock.Unlock()
+				continue
+			}
 		}
 		engine.condLock.Unlock()
 
@@ -408,12 +419,6 @@ func (engine *UsernameScannerEngine) dispatchLoopWithoutPolling() {
 			return
 		}
 	}
-}
-
-func (engine *UsernameScannerEngine) findNextEligibleTask() *UsernameTask {
-	engine.condLock.Lock()
-	defer engine.condLock.Unlock()
-	return engine.findNextEligibleTaskLocked()
 }
 
 func (engine *UsernameScannerEngine) findNextEligibleTaskLocked() *UsernameTask {
@@ -465,7 +470,7 @@ func (engine *UsernameScannerEngine) workerRoutine() {
 			atomic.AddInt32(&task.activeWorkers, -1)
 
 			engine.condLock.Lock()
-			engine.condVar.Broadcast() // استخدام Broadcast لإيقاظ الجميع بأمان
+			engine.condVar.Broadcast()
 			engine.condLock.Unlock()
 		}
 	}
@@ -518,12 +523,7 @@ func (engine *UsernameScannerEngine) executeTaskProbe(task *UsernameTask) {
 			currentCycleHits[task.TargetUsername] = struct{}{}
 			cycleMutex.Unlock()
 
-			resultsChannel <- ScanResult{
-				Username:  task.TargetUsername,
-				FirstSeen: firstTime,
-				FoundTime: discoveryTime,
-			}
-
+			// سيتم إرسال النتيجة إلى القناة المحلية النشطة للدورة
 			atomic.AddInt64(&appStats.availableFound, 1)
 			atomic.AddInt64(&appStats.completedTasks, 1)
 		}
@@ -1909,9 +1909,10 @@ func ExecuteSingleScanCycle(chatID int64) {
 
 	discordStreamDoneChannel := make(chan struct{})
 
-	resultsChannel = make(ScanResult, 10000)
+	// قنوات النتائج محلية بالكامل لكل دورة فحص
+	resultsChannel := make(chan ScanResult, 10000)
 	resultsWorkerDone := make(chan struct{})
-	go StartResultsWriterAndNotifier(resultsWorkerDone)
+	go StartResultsWriterAndNotifier(resultsChannel, resultsWorkerDone)
 
 	cycleCtx, cycleCancel := context.WithCancel(appCtx)
 	defer cycleCancel()
