@@ -88,7 +88,7 @@ var (
 )
 
 // =================================================================
-// دالة قياس الموارد المدمجة (متوافقة مع الملف الواحد)
+// دالة قياس الموارد المدمجة
 // =================================================================
 func getPlatformSpecificMetrics() (float64, float64) {
 	var m runtime.MemStats
@@ -107,10 +107,9 @@ type ScanResult struct {
 }
 
 var resultsChannel chan ScanResult
-var resultsWorkerDone = make(chan struct{})
 
-func StartResultsWriterAndNotifier() {
-	defer close(resultsWorkerDone)
+func StartResultsWriterAndNotifier(doneSignal chan struct{}) {
+	defer close(doneSignal)
 
 	file, err := os.OpenFile(seenFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -298,7 +297,7 @@ type TelegramFile struct {
 }
 
 // =================================================================
-// محرك الفحص المنظم
+// محرك الفحص المنظم (مصحح ومنظم بدون تسريب Goroutine)
 // =================================================================
 type UsernameTask struct {
 	TargetUsername string
@@ -359,6 +358,15 @@ func (engine *UsernameScannerEngine) StartScanning() {
 		engine.waitGroup.Add(1)
 		go engine.workerRoutine()
 	}
+
+	// مراقب إلغاء واحد فقط يُنشأ مرة واحدة للإنجن بأكمله لمنع تسريب الـ Goroutines
+	go func() {
+		<-engine.engineContext.Done()
+		engine.condLock.Lock()
+		engine.condVar.Broadcast()
+		engine.condLock.Unlock()
+	}()
+
 	engine.dispatchLoopWithoutPolling()
 	engine.waitGroup.Wait()
 }
@@ -367,36 +375,28 @@ func (engine *UsernameScannerEngine) dispatchLoopWithoutPolling() {
 	defer close(engine.taskChannel)
 
 	for {
-		select {
-		case <-engine.engineContext.Done():
-			return
-		case <-appCtx.Done():
-			return
-		default:
-		}
 		if atomic.LoadInt32(&isLoopRunning) == 0 {
 			return
 		}
 		if atomic.LoadInt64(&engine.finishedCount) >= engine.totalTasks {
 			return
 		}
+		if engine.engineContext.Err() != nil || appCtx.Err() != nil {
+			return
+		}
 
-		task := engine.findNextEligibleTask()
+		engine.condLock.Lock()
+		task := engine.findNextEligibleTaskLocked()
 		if task == nil {
-			engine.condLock.Lock()
-			if atomic.LoadInt64(&engine.finishedCount) < engine.totalTasks && atomic.LoadInt32(&isLoopRunning) == 1 {
-				doneChan := engine.engineContext.Done()
-				go func() {
-					<-doneChan
-					engine.condLock.Lock()
-					engine.condVar.Broadcast()
-					engine.condLock.Unlock()
-				}()
+			if atomic.LoadInt64(&engine.finishedCount) < atomic.LoadInt64(&engine.totalTasks) &&
+				atomic.LoadInt32(&isLoopRunning) == 1 &&
+				engine.engineContext.Err() == nil && appCtx.Err() == nil {
 				engine.condVar.Wait()
 			}
 			engine.condLock.Unlock()
 			continue
 		}
+		engine.condLock.Unlock()
 
 		select {
 		case engine.taskChannel <- task:
@@ -413,7 +413,10 @@ func (engine *UsernameScannerEngine) dispatchLoopWithoutPolling() {
 func (engine *UsernameScannerEngine) findNextEligibleTask() *UsernameTask {
 	engine.condLock.Lock()
 	defer engine.condLock.Unlock()
+	return engine.findNextEligibleTaskLocked()
+}
 
+func (engine *UsernameScannerEngine) findNextEligibleTaskLocked() *UsernameTask {
 	numTasks := len(engine.tasksList)
 	if numTasks == 0 {
 		return nil
@@ -462,7 +465,7 @@ func (engine *UsernameScannerEngine) workerRoutine() {
 			atomic.AddInt32(&task.activeWorkers, -1)
 
 			engine.condLock.Lock()
-			engine.condVar.Signal()
+			engine.condVar.Broadcast() // استخدام Broadcast لإيقاظ الجميع بأمان
 			engine.condLock.Unlock()
 		}
 	}
@@ -1663,7 +1666,6 @@ func StartSystemResourceMonitor() {
 		appStats.rssMemoryMB = rssMB
 		appStats.cpuUsagePercent = cpuPct
 		appStats.activeGoroutines = runtime.NumGoroutine()
-		isRunning := appStats.isRunning
 		appStats.mutex.Unlock()
 
 		select {
@@ -1907,8 +1909,9 @@ func ExecuteSingleScanCycle(chatID int64) {
 
 	discordStreamDoneChannel := make(chan struct{})
 
-	resultsChannel = make(chan ScanResult, 10000)
-	go StartResultsWriterAndNotifier()
+	resultsChannel = make(ScanResult, 10000)
+	resultsWorkerDone := make(chan struct{})
+	go StartResultsWriterAndNotifier(resultsWorkerDone)
 
 	cycleCtx, cycleCancel := context.WithCancel(appCtx)
 	defer cycleCancel()
