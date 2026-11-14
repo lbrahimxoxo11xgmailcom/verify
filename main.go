@@ -345,7 +345,6 @@ func InitializeScannerEngine(ctx context.Context, usernames []string, resChan ch
 }
 
 func (engine *UsernameScannerEngine) StartScanning() {
-	// مراقب إلغاء واحد فقط يُنشأ مرة واحدة للإنجن بأكمله
 	go func() {
 		<-engine.engineContext.Done()
 		engine.condLock.Lock()
@@ -516,7 +515,6 @@ func (engine *UsernameScannerEngine) executeTaskProbe(task *UsernameTask) {
 			currentCycleHits[task.TargetUsername] = struct{}{}
 			cycleMutex.Unlock()
 
-			// إرسال اليوزر المتاح لقناة النتائج المحلية للدورة
 			select {
 			case engine.resultsChannel <- ScanResult{
 				Username:  task.TargetUsername,
@@ -585,7 +583,7 @@ func (engine *UsernameScannerEngine) StopEngine() {
 }
 
 // =================================================================
-// تنفيذ فحص الـ GraphQL
+// تنفيذ فحص الـ GraphQL والبروكسي الآمن
 // =================================================================
 func randomString(n int) string {
 	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
@@ -630,10 +628,15 @@ func executeGraphQLValidationSafe(ctx context.Context, username string, proxyURL
 
 			dialsNet := &net.Dialer{}
 			if proxyURLStr != "" {
-				pURL, parseErr := url.Parse(proxyURLStr)
+				formattedProxy := proxyURLStr
+				if !strings.Contains(formattedProxy, "://") {
+					formattedProxy = "http://" + formattedProxy
+				}
+				pURL, parseErr := url.Parse(formattedProxy)
 				if parseErr != nil {
 					return nil, parseErr
 				}
+				
 				tcpConn, err = dialsNet.DialContext(ctx, "tcp", pURL.Host)
 				if err != nil {
 					return nil, err
@@ -1911,7 +1914,6 @@ func ExecuteSingleScanCycle(chatID int64) {
 
 	discordStreamDoneChannel := make(chan struct{})
 
-	// قنوات النتائج محلية بالكامل لكل دورة فحص
 	resultsChannel := make(chan ScanResult, 10000)
 	resultsWorkerDone := make(chan struct{})
 	go StartResultsWriterAndNotifier(resultsChannel, resultsWorkerDone)
